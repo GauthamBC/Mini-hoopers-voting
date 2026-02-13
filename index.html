@@ -1,91 +1,11 @@
-<script>
-  const FEED_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTFX7nWMq_3plmeprD6ncT1UQA1BiUYwjdh2SSnKstU3FSPKILos79nA-SAYddYV_gt2iyslYqqMWp2/gviz/tq?tqx=out:json&gid=1795204638";
-
-  let allRows = [];
-
-  function parseGviz(text) {
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-    if (start === -1 || end === -1) throw new Error("Invalid GViz response");
-    return JSON.parse(text.slice(start, end + 1));
-  }
-
-  function esc(s){
-    return String(s || "")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
-
-  // Your tab columns:
-  // F (index 5) = Caption
-  // H (index 7) = Post Img URLs
-  // I (index 8) = Approved Mini Hoopers
-  function mapRow(r){
-    const c = r.c || [];
-    const caption = c[5]?.v ? String(c[5].v).trim() : "";
-    const image   = c[7]?.v ? String(c[7].v).trim() : "";
-    const mini    = c[8]?.v ? String(c[8].v).trim() : "";
-    return { id: mini, image_url: image, caption };
-  }
-
-  function validImageUrl(url){
-    return /^https?:\/\/.+/i.test(url);
-  }
-
-  function render(rows){
-    const gallery = document.getElementById("gallery");
-    const status = document.getElementById("status");
-    gallery.innerHTML = "";
-
-    rows.forEach(item => {
-      const card = document.createElement("article");
-      card.className = "card";
-      card.innerHTML = `
-        <img loading="lazy" src="${esc(item.image_url)}" alt="${esc(item.id || "Mini Hooper")}" />
-        <div class="meta">
-          <div class="title">${esc(item.id || "Mini Hooper")}</div>
-          <div class="caption">${esc(item.caption || "")}</div>
-        </div>
-      `;
-      gallery.appendChild(card);
-    });
-
-    status.textContent = `Showing ${rows.length} approved entries.`;
-  }
-
-  function applyFilter(){
-    const q = document.getElementById("search").value.trim().toLowerCase();
-    if(!q) return render(allRows);
-
-    const filtered = allRows.filter(x =>
-      (x.id || "").toLowerCase().includes(q) ||
-      (x.caption || "").toLowerCase().includes(q)
-    );
-    render(filtered);
-  }
-
-  async function load(){
-    const status = document.getElementById("status");
-    try{
-      const res = await fetch(FEED_URL, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const txt = await res.text();
-      const data = parseGviz(txt);
-
-      allRows = (data.table.rows || [])
-        .map(mapRow)
-        .filter(x => x.id && x.image_url && validImageUrl(x.image_url));
-
-      render(allRows);
-    }catch(err){
-      console.error(err);
-      status.textContent = `Failed to load data: ${err.message}`;
-    }
-  }
-
-  document.getElementById("search").addEventListener("input", applyFilter);
-  load();
-</script>
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Mini Hoopers Test</title>
+</head>
+<body style="font-family:Arial;padding:24px;">
+  <h1>Mini Hoopers Test ✅</h1>
+  <p>If you see this, GitHub Pages deployment is working.</p>
+</body>
+</html>
