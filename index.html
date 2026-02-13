@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -10,93 +9,50 @@
       --bg:#f8fafc;
       --text:#0f172a;
       --muted:#475569;
-      --card:#ffffff;
+      --card:#fff;
       --border:#e2e8f0;
     }
-    *{ box-sizing:border-box; }
+    *{box-sizing:border-box}
     body{
       margin:24px;
-      font-family: Arial, sans-serif;
+      font-family:Arial,sans-serif;
       background:var(--bg);
       color:var(--text);
     }
-    .wrap{ max-width:1200px; margin:0 auto; }
-    h1{
-      margin:0 0 6px;
-      font-size:44px;
-      line-height:1.05;
-    }
-    .sub{
-      margin:0 0 16px;
-      color:var(--muted);
-      font-size:18px;
-    }
-    .toolbar{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-bottom:16px;
-    }
+    .wrap{max-width:1200px;margin:0 auto}
+    h1{margin:0 0 6px;font-size:42px;line-height:1.05}
+    .sub{margin:0 0 16px;color:var(--muted);font-size:18px}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
     input[type="search"]{
-      width:420px;
-      max-width:100%;
-      border:1px solid #cbd5e1;
-      border-radius:12px;
-      padding:12px 14px;
-      font-size:16px;
-      outline:none;
-    }
-    input[type="search"]:focus{
-      border-color:#94a3b8;
+      width:420px;max-width:100%;
+      border:1px solid #cbd5e1;border-radius:12px;
+      padding:12px 14px;font-size:16px
     }
     .grid{
       display:grid;
       grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
-      gap:16px;
+      gap:16px
     }
     .card{
       background:var(--card);
       border:1px solid var(--border);
-      border-radius:14px;
-      overflow:hidden;
-      box-shadow:0 1px 2px rgba(0,0,0,.04);
+      border-radius:14px;overflow:hidden;
+      box-shadow:0 1px 2px rgba(0,0,0,.04)
     }
     .card img{
-      width:100%;
-      height:230px;
-      object-fit:cover;
-      display:block;
-      background:#e2e8f0;
+      width:100%;height:230px;object-fit:cover;display:block;background:#e2e8f0
     }
-    .meta{ padding:12px; }
-    .title{
-      font-weight:700;
-      margin-bottom:8px;
-      font-size:18px;
-      color:var(--text);
-    }
-    .caption{
-      font-size:14px;
-      line-height:1.45;
-      color:#334155;
-    }
-    .status{
-      margin-top:14px;
-      font-size:14px;
-      color:#64748b;
-      white-space:pre-wrap;
-    }
-    .small{
-      font-size:12px;
-      color:#94a3b8;
-      margin-top:4px;
-    }
+    .meta{padding:12px}
+    .title{font-weight:700;font-size:18px;margin-bottom:8px}
+    .caption{font-size:14px;line-height:1.45;color:#334155}
+    .status{margin-top:14px;font-size:14px;color:#64748b;white-space:pre-wrap}
+    .debug{margin-top:6px;font-size:12px;color:#94a3b8;word-break:break-all}
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Mini Hoopers 🏀🐾</h1>
-    <p class="sub">Live gallery from the “Approved Entries” tab.</p>
+    <p class="sub">Live gallery from the “Approved entries” tab.</p>
 
     <div class="toolbar">
       <input id="search" type="search" placeholder="Search by name or caption..." />
@@ -104,19 +60,20 @@
 
     <div id="gallery" class="grid"></div>
     <div id="status" class="status">Loading entries...</div>
-    <div id="debug" class="small"></div>
+    <div id="debug" class="debug"></div>
   </div>
 
   <script>
-    /**
-     * USE YOUR NORMAL SPREADSHEET ID (from /d/<ID>/edit), even if whole doc is published.
-     * Do NOT use the /d/e/ published key here.
-     */
-    const SPREADSHEET_ID = "PASTE_YOUR_NORMAL_SPREADSHEET_ID_HERE";
-    const GID_APPROVED_ENTRIES = "1795204638"; // Your Approved Entries tab gid
+    // Published document key from your /d/e/.../pubhtml URL
+    const PUBLISHED_KEY = "2PACX-1vTFX7nWMq_3plmeprD6ncT1UQA1BiUYwjdh2SSnKstU3FSPKILos79nA-SAYddYV_gt2iyslYqqMWp2";
 
-    // Using gid directly works whether whole doc is published or not (as long as access allows)
-    const FEED_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=${GID_APPROVED_ENTRIES}`;
+    // IMPORTANT:
+    // Use the gid for "Approved entries" tab.
+    // You previously used 1795204638; keep that if it is the same tab.
+    const GID = "1795204638";
+
+    // Use published-key gviz feed
+    const FEED_URL = `https://docs.google.com/spreadsheets/d/e/${PUBLISHED_KEY}/gviz/tq?tqx=out:json&gid=${GID}`;
 
     let allRows = [];
 
@@ -132,41 +89,35 @@
     function extractGvizJson(text){
       const t = (text || "").trim();
 
-      // If we got HTML, URL/permissions are wrong
       if (t.startsWith("<!DOCTYPE html") || t.startsWith("<html")) {
-        throw new Error("Feed returned HTML, not GViz JSON. Check SPREADSHEET_ID, publish settings, and gid.");
+        throw new Error("Feed returned HTML (not GViz JSON). Check published URL/key and gid.");
       }
 
-      // Standard GViz wrapper
-      const match = t.match(/google\\.visualization\\.Query\\.setResponse\\((([\\s\\S])*?)\\);?\\s*$/);
-      if (match && match[1]) {
-        return JSON.parse(match[1]);
-      }
+      const m = t.match(/google\.visualization\.Query\.setResponse\(([\s\S]*?)\);?\s*$/);
+      if (m && m[1]) return JSON.parse(m[1]);
 
-      // Fallback: parse first object
       const start = t.indexOf("{");
       const end = t.lastIndexOf("}");
       if (start === -1 || end === -1 || end <= start) {
-        throw new Error("Could not locate JSON object in GViz response.");
+        throw new Error("Could not parse GViz response.");
       }
       return JSON.parse(t.slice(start, end + 1));
     }
 
-    // Your current columns in Approved Entries:
-    // F = Caption => index 5
-    // H = Post Img URLs => index 7
-    // I = Approved Mini Hoopers => index 8
+    // Your "Approved entries" columns:
+    // F (index 5) = Caption
+    // H (index 7) = Post Img URLs
+    // I (index 8) = Approved Mini Hoopers
     function mapRow(r){
       const c = r.c || [];
       const caption = c[5]?.v ? String(c[5].v).trim() : "";
       const image   = c[7]?.v ? String(c[7].v).trim() : "";
       const id      = c[8]?.v ? String(c[8].v).trim() : "";
-
       return { id, image_url: image, caption };
     }
 
     function validImageUrl(url){
-      return /^https?:\\/\\/.+/i.test(url);
+      return /^https?:\/\/.+/i.test(url);
     }
 
     function render(rows){
@@ -192,16 +143,12 @@
 
     function applyFilter(){
       const q = document.getElementById("search").value.trim().toLowerCase();
-      if(!q){
-        render(allRows);
-        return;
-      }
+      if (!q) return render(allRows);
 
       const filtered = allRows.filter(x =>
         (x.id || "").toLowerCase().includes(q) ||
         (x.caption || "").toLowerCase().includes(q)
       );
-
       render(filtered);
     }
 
@@ -209,20 +156,21 @@
       const status = document.getElementById("status");
       const debug = document.getElementById("debug");
       try{
-        debug.textContent = `Feed: ${FEED_URL}`;
+        debug.textContent = `Feed URL: ${FEED_URL}`;
+
         const res = await fetch(FEED_URL, { cache: "no-store" });
-        if(!res.ok) throw new Error(`Feed HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`Feed HTTP ${res.status}`);
 
         const txt = await res.text();
         const data = extractGvizJson(txt);
-        const rawRows = data?.table?.rows || [];
 
+        const rawRows = data?.table?.rows || [];
         allRows = rawRows
           .map(mapRow)
           .filter(x => x.id && x.image_url && validImageUrl(x.image_url));
 
         render(allRows);
-      } catch(err){
+      }catch(err){
         console.error(err);
         status.textContent = `Failed to load entries.\n${err.message}`;
       }
