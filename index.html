@@ -8,127 +8,165 @@
     :root{
       --bg:#f8fafc;
       --text:#0f172a;
-      --muted:#475569;
-      --card:#fff;
+      --muted:#64748b;
+      --card:#ffffff;
       --border:#e2e8f0;
       --btn:#0f172a;
-      --btnText:#fff;
+      --btnText:#ffffff;
     }
     *{ box-sizing:border-box; }
     body{
-      margin:24px;
-      font-family:Arial,sans-serif;
+      margin:20px;
+      font-family: Inter, Arial, sans-serif;
       background:var(--bg);
       color:var(--text);
     }
-    .wrap{ max-width:1240px; margin:0 auto; }
-    h1{ margin:0 0 6px; font-size:72px; line-height:1.02; }
-    .sub{ margin:0 0 18px; color:var(--muted); font-size:30px; }
-    .toolbar{ margin-bottom:16px; }
-    input[type="search"]{
-      width:760px; max-width:100%;
-      border:1px solid #cbd5e1; border-radius:14px;
-      padding:14px 16px; font-size:28px; background:#fff;
+    .wrap{ max-width:1200px; margin:0 auto; }
+
+    /* Compact header */
+    h1{
+      margin:0;
+      font-size:44px;
+      line-height:1.05;
+      letter-spacing:-0.02em;
     }
+    .sub{
+      margin:6px 0 14px;
+      color:#334155;
+      font-size:18px;
+    }
+
     .notice{
       margin:0 0 14px;
-      padding:10px 12px;
+      padding:8px 10px;
       border:1px solid #dbeafe;
       background:#eff6ff;
       color:#1e3a8a;
       border-radius:10px;
-      font-size:14px;
+      font-size:13px;
     }
+
+    /* Compact responsive grid */
     .grid{
       display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
-      gap:16px;
+      grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+      gap:12px;
     }
+
     .card{
       background:var(--card);
       border:1px solid var(--border);
-      border-radius:14px;
+      border-radius:12px;
       overflow:hidden;
-      box-shadow:0 1px 2px rgba(0,0,0,.04);
+      box-shadow:0 1px 2px rgba(0,0,0,.05);
       display:flex;
       flex-direction:column;
     }
+
     .card img{
-      width:100%; height:250px; object-fit:cover; display:block;
+      width:100%;
+      aspect-ratio: 4 / 3;
+      object-fit:cover;
+      display:block;
       background:#e2e8f0;
     }
-    .meta{ padding:12px; display:flex; flex-direction:column; gap:8px; }
-    .title{ font-size:42px; font-weight:700; line-height:1.1; }
-    .caption{ font-size:38px; line-height:1.35; color:#334155; min-height:54px; }
+
+    .meta{
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    .title{
+      font-size:16px;
+      font-weight:800;
+      line-height:1.2;
+    }
+
+    .caption{
+      font-size:14px;
+      color:#334155;
+      line-height:1.35;
+      min-height:38px;
+
+      display:-webkit-box;
+      -webkit-line-clamp:2;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
+    }
 
     .vote-row{
+      margin-top:2px;
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:10px;
-      margin-top:2px;
+      gap:8px;
     }
+
     .vote-btn{
       border:1px solid #cbd5e1;
-      border-radius:10px;
+      border-radius:9px;
       background:var(--btn);
       color:var(--btnText);
-      padding:8px 12px;
-      font-size:14px;
+      padding:7px 11px;
+      font-size:13px;
       font-weight:700;
       cursor:pointer;
+      white-space:nowrap;
     }
     .vote-btn:hover{ opacity:.95; }
-    .vote-hint{ font-size:12px; color:#64748b; }
+    .vote-btn:disabled{ opacity:.65; cursor:not-allowed; }
+
+    .vote-hint{
+      font-size:12px;
+      color:var(--muted);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:140px;
+      text-align:right;
+    }
 
     .status{
-      margin-top:14px;
-      font-size:14px;
-      color:#64748b;
+      margin-top:12px;
+      font-size:13px;
+      color:var(--muted);
       white-space:pre-wrap;
     }
-    .debug{
-      margin-top:6px;
-      font-size:12px;
-      color:#94a3b8;
-      word-break:break-all;
+
+    @media (max-width:700px){
+      body{ margin:14px; }
+      h1{ font-size:34px; }
+      .sub{ font-size:16px; }
+      .grid{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+      .vote-hint{ display:none; } /* cleaner on mobile */
     }
 
-    @media (max-width:900px){
-      h1{font-size:48px;}
-      .sub{font-size:24px;}
-      input[type="search"]{font-size:20px; width:100%;}
-      .title{font-size:28px;}
-      .caption{font-size:22px;}
+    @media (max-width:460px){
+      .grid{ grid-template-columns:1fr; }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Mini Hoopers 🏀🐾</h1>
-    <p class="sub">Live gallery from the “Approved Entries” tab.</p>
-
-    <div class="toolbar">
-      <input id="search" type="search" placeholder="Search by name or caption..." />
-    </div>
+    <p class="sub">Vote for your favorite approved entry.</p>
 
     <div class="notice">
-      Voting UI is live. Vote storage will be connected next to your <strong>Voting Bank</strong> sheet.
+      Voting UI is live. Final vote storage will connect to your <strong>Voting Bank</strong> sheet next.
     </div>
 
     <div id="gallery" class="grid"></div>
     <div id="status" class="status">Loading entries...</div>
-    <div id="debug" class="debug"></div>
   </div>
 
   <script>
-    // Approved Entries published CSV endpoint (already working for you)
+    // Approved Entries published CSV endpoint
     const CSV_URL =
       "https://docs.google.com/spreadsheets/d/e/2PACX-1vTFX7nWMq_3plmeprD6ncT1UQA1BiUYwjdh2SSnKstU3FSPKILos79nA-SAYddYV_gt2iyslYqqMWp2/pub?gid=1795204638&single=true&output=csv";
 
-    // Front-end only "pending vote" key (temporary until backend is connected)
     const LOCAL_PENDING_VOTE_KEY = "mini_hoopers_pending_vote";
-
     let allRows = [];
 
     function esc(s){
@@ -143,44 +181,36 @@
     function parseCSV(text) {
       const s = String(text || "").replace(/^\uFEFF/, "");
       const rows = [];
-      let row = [];
-      let cur = "";
-      let inQuotes = false;
+      let row = [], cur = "", inQuotes = false;
 
-      for (let i = 0; i < s.length; i++) {
-        const ch = s[i];
-        const next = s[i + 1];
-
-        if (ch === '"') {
-          if (inQuotes && next === '"') { cur += '"'; i++; }
-          else { inQuotes = !inQuotes; }
+      for (let i=0; i<s.length; i++){
+        const ch = s[i], next = s[i+1];
+        if (ch === '"'){
+          if (inQuotes && next === '"'){ cur += '"'; i++; }
+          else inQuotes = !inQuotes;
           continue;
         }
-        if (!inQuotes && ch === ',') { row.push(cur); cur = ""; continue; }
-        if (!inQuotes && ch === '\n') { row.push(cur); rows.push(row); row = []; cur = ""; continue; }
+        if (!inQuotes && ch === ','){ row.push(cur); cur=""; continue; }
+        if (!inQuotes && ch === '\n'){ row.push(cur); rows.push(row); row=[]; cur=""; continue; }
         if (!inQuotes && ch === '\r') continue;
         cur += ch;
       }
+      row.push(cur); rows.push(row);
 
-      row.push(cur);
-      rows.push(row);
-
-      while (rows.length && rows[rows.length - 1].every(c => String(c || "").trim() === "")) {
-        rows.pop();
-      }
+      while (rows.length && rows[rows.length - 1].every(c => String(c || "").trim() === "")) rows.pop();
       return rows.map(r => r.map(c => String(c || "").trim()));
     }
 
-    function findCol(headers, names) {
+    function findCol(headers, names){
       const lower = headers.map(h => String(h || "").trim().toLowerCase());
-      for (const n of names) {
-        const idx = lower.indexOf(String(n).toLowerCase());
-        if (idx !== -1) return idx;
+      for (const n of names){
+        const i = lower.indexOf(String(n).toLowerCase());
+        if (i !== -1) return i;
       }
       return -1;
     }
 
-    function toDirectImageUrl(url) {
+    function toDirectImageUrl(url){
       if (!url) return "";
       const u = String(url).trim();
 
@@ -188,46 +218,38 @@
       if (m && m[1]) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
 
       m = u.match(/[?&]id=([^&]+)/i);
-      if (m && m[1] && u.includes("drive.google.com")) {
-        return `https://drive.google.com/uc?export=view&id=${m[1]}`;
-      }
+      if (m && m[1] && u.includes("drive.google.com")) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
 
       return u;
     }
 
-    function validImageUrl(url){
-      return /^https?:\/\/.+/i.test(url);
-    }
+    function validImageUrl(url){ return /^https?:\/\/.+/i.test(url); }
 
-    function setPendingVote(entryId){
-      localStorage.setItem(LOCAL_PENDING_VOTE_KEY, entryId);
-    }
-
-    function getPendingVote(){
-      return localStorage.getItem(LOCAL_PENDING_VOTE_KEY) || "";
-    }
+    function setPendingVote(entryId){ localStorage.setItem(LOCAL_PENDING_VOTE_KEY, entryId); }
+    function getPendingVote(){ return localStorage.getItem(LOCAL_PENDING_VOTE_KEY) || ""; }
 
     function render(rows){
       const gallery = document.getElementById("gallery");
       const status = document.getElementById("status");
-      gallery.innerHTML = "";
-
       const pending = getPendingVote();
 
+      gallery.innerHTML = "";
+
       rows.forEach(item => {
+        const selected = pending === item.id;
+
         const card = document.createElement("article");
         card.className = "card";
-
-        const votedThis = pending && pending === item.id;
-
         card.innerHTML = `
           <img loading="lazy" src="${esc(item.image_url)}" alt="${esc(item.id || "Mini Hooper")}" />
           <div class="meta">
             <div class="title">${esc(item.id || "Mini Hooper")}</div>
-            <div class="caption">${esc(item.caption || "")}</div>
+            <div class="caption" title="${esc(item.caption || "")}">${esc(item.caption || "")}</div>
             <div class="vote-row">
-              <button class="vote-btn" data-id="${esc(item.id)}">${votedThis ? "Selected ✅" : "Vote"}</button>
-              <span class="vote-hint">${votedThis ? "Pending backend save" : "One selection per browser (for now)"}</span>
+              <button class="vote-btn" data-id="${esc(item.id)}" ${selected ? "disabled" : ""}>
+                ${selected ? "Selected ✅" : "Vote"}
+              </button>
+              <span class="vote-hint">${selected ? "Pending save" : "One selection for now"}</span>
             </div>
           </div>
         `;
@@ -236,7 +258,6 @@
         btn.addEventListener("click", () => {
           setPendingVote(item.id);
           render(rows);
-          alert(`Selection saved locally for now: ${item.id}\n\nNext step: connect Apps Script to store in Voting Bank.`);
         });
 
         gallery.appendChild(card);
@@ -245,23 +266,9 @@
       status.textContent = `Showing ${rows.length} approved entries.`;
     }
 
-    function applyFilter(){
-      const q = document.getElementById("search").value.trim().toLowerCase();
-      if (!q) return render(allRows);
-
-      const filtered = allRows.filter(x =>
-        (x.id || "").toLowerCase().includes(q) ||
-        (x.caption || "").toLowerCase().includes(q)
-      );
-      render(filtered);
-    }
-
     async function load(){
       const status = document.getElementById("status");
-      const debug = document.getElementById("debug");
-
       try{
-        debug.textContent = `CSV URL: ${CSV_URL}`;
         const res = await fetch(CSV_URL + "&_=" + Date.now(), { cache: "no-store" });
         if (!res.ok) throw new Error(`CSV HTTP ${res.status}`);
 
@@ -270,7 +277,6 @@
         if (!rows || rows.length < 2) throw new Error("CSV contains no data rows.");
 
         const headers = rows[0];
-
         const idxCaption = findCol(headers, ["Caption"]);
         const idxImg = findCol(headers, ["Post Img URLs","Post Img URL","Postimg URLs","Postimg URL"]);
         const idxTitle = findCol(headers, ["Approved Mini Hoopers","Approved Mini Hooper"]);
@@ -291,13 +297,12 @@
         }).filter(x => x.id && validImageUrl(x.image_url));
 
         render(allRows);
-      } catch (err) {
+      } catch(err){
         console.error(err);
         status.textContent = `Failed to load entries.\n${err.message}`;
       }
     }
 
-    document.getElementById("search").addEventListener("input", applyFilter);
     load();
   </script>
 </body>
