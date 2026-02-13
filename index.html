@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -5,37 +6,91 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Mini Hoopers Voting</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 24px; background: #f8fafc; color:#0f172a; }
-    .wrap { max-width: 1200px; margin: 0 auto; }
-    h1 { margin: 0 0 6px; font-size: 48px; line-height: 1.05; }
-    .sub { color: #475569; margin: 0 0 16px; font-size: 20px; }
-    .toolbar { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+    :root{
+      --bg:#f8fafc;
+      --text:#0f172a;
+      --muted:#475569;
+      --card:#ffffff;
+      --border:#e2e8f0;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:24px;
+      font-family: Arial, sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+    .wrap{ max-width:1200px; margin:0 auto; }
+    h1{
+      margin:0 0 6px;
+      font-size:44px;
+      line-height:1.05;
+    }
+    .sub{
+      margin:0 0 16px;
+      color:var(--muted);
+      font-size:18px;
+    }
+    .toolbar{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:16px;
+    }
     input[type="search"]{
-      width: 420px; max-width: 100%;
-      padding: 12px 14px; border:1px solid #cbd5e1; border-radius:12px; font-size: 18px;
+      width:420px;
+      max-width:100%;
+      border:1px solid #cbd5e1;
+      border-radius:12px;
+      padding:12px 14px;
+      font-size:16px;
+      outline:none;
+    }
+    input[type="search"]:focus{
+      border-color:#94a3b8;
     }
     .grid{
       display:grid;
-      grid-template-columns: repeat(auto-fill,minmax(250px,1fr));
+      grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
       gap:16px;
     }
     .card{
-      background:#fff; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:14px;
+      overflow:hidden;
+      box-shadow:0 1px 2px rgba(0,0,0,.04);
     }
     .card img{
-      width:100%; height:230px; object-fit:cover; display:block; background:#e2e8f0;
+      width:100%;
+      height:230px;
+      object-fit:cover;
+      display:block;
+      background:#e2e8f0;
     }
     .meta{ padding:12px; }
-    .title{ font-weight:700; margin-bottom:8px; color:#0f172a; font-size: 18px; }
-    .caption{ color:#334155; line-height:1.45; font-size:15px; margin-bottom: 12px; }
-    .vote-btn{
-      width:100%;
-      border:1px solid #cbd5e1; border-radius:10px;
-      background:#0f172a; color:#fff; padding:10px 12px; cursor:pointer; font-weight:700;
+    .title{
+      font-weight:700;
+      margin-bottom:8px;
+      font-size:18px;
+      color:var(--text);
     }
-    .vote-btn:disabled { opacity: .6; cursor:not-allowed; }
-    .status{ margin-top:14px; color:#64748b; font-size:14px; white-space:pre-wrap; }
+    .caption{
+      font-size:14px;
+      line-height:1.45;
+      color:#334155;
+    }
+    .status{
+      margin-top:14px;
+      font-size:14px;
+      color:#64748b;
+      white-space:pre-wrap;
+    }
+    .small{
+      font-size:12px;
+      color:#94a3b8;
+      margin-top:4px;
+    }
   </style>
 </head>
 <body>
@@ -49,113 +104,132 @@
 
     <div id="gallery" class="grid"></div>
     <div id="status" class="status">Loading entries...</div>
+    <div id="debug" class="small"></div>
   </div>
+
   <script>
-  // IMPORTANT: use your real spreadsheet ID from /d/<ID>/edit
-  // and your Approved Entries gid
-  const FEED_URL = "https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/gviz/tq?tqx=out:json&gid=1795204638";
+    /**
+     * USE YOUR NORMAL SPREADSHEET ID (from /d/<ID>/edit), even if whole doc is published.
+     * Do NOT use the /d/e/ published key here.
+     */
+    const SPREADSHEET_ID = "PASTE_YOUR_NORMAL_SPREADSHEET_ID_HERE";
+    const GID_APPROVED_ENTRIES = "1795204638"; // Your Approved Entries tab gid
 
-  let allRows = [];
+    // Using gid directly works whether whole doc is published or not (as long as access allows)
+    const FEED_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=${GID_APPROVED_ENTRIES}`;
 
-  function extractGvizJson(text) {
-    // Detect HTML responses (wrong URL/permissions/redirect)
-    const t = text.trim();
-    if (t.startsWith("<!DOCTYPE html") || t.startsWith("<html")) {
-      throw new Error("Feed returned HTML, not GViz JSON. Check FEED_URL, publish settings, and sheet ID.");
+    let allRows = [];
+
+    function esc(s){
+      return String(s || "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
     }
 
-    // Preferred parse: wrapped callback format
-    const match = t.match(/google\.visualization\.Query\.setResponse\(([\s\S]*?)\);?\s*$/);
-    if (match && match[1]) return JSON.parse(match[1]);
+    function extractGvizJson(text){
+      const t = (text || "").trim();
 
-    // Fallback parse: first {...} block
-    const start = t.indexOf("{");
-    const end = t.lastIndexOf("}");
-    if (start === -1 || end === -1 || end <= start) {
-      throw new Error("Could not find JSON object in GViz response.");
+      // If we got HTML, URL/permissions are wrong
+      if (t.startsWith("<!DOCTYPE html") || t.startsWith("<html")) {
+        throw new Error("Feed returned HTML, not GViz JSON. Check SPREADSHEET_ID, publish settings, and gid.");
+      }
+
+      // Standard GViz wrapper
+      const match = t.match(/google\\.visualization\\.Query\\.setResponse\\((([\\s\\S])*?)\\);?\\s*$/);
+      if (match && match[1]) {
+        return JSON.parse(match[1]);
+      }
+
+      // Fallback: parse first object
+      const start = t.indexOf("{");
+      const end = t.lastIndexOf("}");
+      if (start === -1 || end === -1 || end <= start) {
+        throw new Error("Could not locate JSON object in GViz response.");
+      }
+      return JSON.parse(t.slice(start, end + 1));
     }
-    return JSON.parse(t.slice(start, end + 1));
-  }
 
-  function esc(s){
-    return String(s || "")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
+    // Your current columns in Approved Entries:
+    // F = Caption => index 5
+    // H = Post Img URLs => index 7
+    // I = Approved Mini Hoopers => index 8
+    function mapRow(r){
+      const c = r.c || [];
+      const caption = c[5]?.v ? String(c[5].v).trim() : "";
+      const image   = c[7]?.v ? String(c[7].v).trim() : "";
+      const id      = c[8]?.v ? String(c[8].v).trim() : "";
 
-  // Your columns:
-  // F = index 5 (Caption)
-  // H = index 7 (Post Img URLs)
-  // I = index 8 (Approved Mini Hoopers)
-  function mapRow(r){
-    const c = r.c || [];
-    return {
-      caption: c[5]?.v ? String(c[5].v).trim() : "",
-      image_url: c[7]?.v ? String(c[7].v).trim() : "",
-      id: c[8]?.v ? String(c[8].v).trim() : ""
-    };
-  }
-
-  function validImageUrl(url){
-    return /^https?:\/\/.+/i.test(url);
-  }
-
-  function render(rows){
-    const gallery = document.getElementById("gallery");
-    const status = document.getElementById("status");
-    gallery.innerHTML = "";
-
-    rows.forEach(item => {
-      const card = document.createElement("article");
-      card.className = "card";
-      card.innerHTML = `
-        <img loading="lazy" src="${esc(item.image_url)}" alt="${esc(item.id || "Mini Hooper")}" />
-        <div class="meta">
-          <div class="title">${esc(item.id || "Mini Hooper")}</div>
-          <div class="caption">${esc(item.caption || "")}</div>
-        </div>
-      `;
-      gallery.appendChild(card);
-    });
-
-    status.textContent = `Showing ${rows.length} approved entries.`;
-  }
-
-  function applyFilter(){
-    const q = document.getElementById("search").value.trim().toLowerCase();
-    if(!q) return render(allRows);
-
-    const filtered = allRows.filter(x =>
-      (x.id || "").toLowerCase().includes(q) ||
-      (x.caption || "").toLowerCase().includes(q)
-    );
-    render(filtered);
-  }
-
-  async function load(){
-    const status = document.getElementById("status");
-    try{
-      const res = await fetch(FEED_URL, { cache: "no-store" });
-      if (!res.ok) throw new Error(`Feed HTTP ${res.status}`);
-
-      const txt = await res.text();
-      const data = extractGvizJson(txt);
-
-      const raw = data?.table?.rows || [];
-      allRows = raw.map(mapRow).filter(x => x.id && x.image_url && validImageUrl(x.image_url));
-
-      render(allRows);
-    } catch (e) {
-      console.error(e);
-      status.textContent = `Failed to load entries.\n${e.message}`;
+      return { id, image_url: image, caption };
     }
-  }
 
-  document.getElementById("search").addEventListener("input", applyFilter);
-  load();
-</script>
+    function validImageUrl(url){
+      return /^https?:\\/\\/.+/i.test(url);
+    }
+
+    function render(rows){
+      const gallery = document.getElementById("gallery");
+      const status = document.getElementById("status");
+      gallery.innerHTML = "";
+
+      rows.forEach(item => {
+        const card = document.createElement("article");
+        card.className = "card";
+        card.innerHTML = `
+          <img loading="lazy" src="${esc(item.image_url)}" alt="${esc(item.id || "Mini Hooper")}" />
+          <div class="meta">
+            <div class="title">${esc(item.id || "Mini Hooper")}</div>
+            <div class="caption">${esc(item.caption || "")}</div>
+          </div>
+        `;
+        gallery.appendChild(card);
+      });
+
+      status.textContent = `Showing ${rows.length} approved entries.`;
+    }
+
+    function applyFilter(){
+      const q = document.getElementById("search").value.trim().toLowerCase();
+      if(!q){
+        render(allRows);
+        return;
+      }
+
+      const filtered = allRows.filter(x =>
+        (x.id || "").toLowerCase().includes(q) ||
+        (x.caption || "").toLowerCase().includes(q)
+      );
+
+      render(filtered);
+    }
+
+    async function load(){
+      const status = document.getElementById("status");
+      const debug = document.getElementById("debug");
+      try{
+        debug.textContent = `Feed: ${FEED_URL}`;
+        const res = await fetch(FEED_URL, { cache: "no-store" });
+        if(!res.ok) throw new Error(`Feed HTTP ${res.status}`);
+
+        const txt = await res.text();
+        const data = extractGvizJson(txt);
+        const rawRows = data?.table?.rows || [];
+
+        allRows = rawRows
+          .map(mapRow)
+          .filter(x => x.id && x.image_url && validImageUrl(x.image_url));
+
+        render(allRows);
+      } catch(err){
+        console.error(err);
+        status.textContent = `Failed to load entries.\n${err.message}`;
+      }
+    }
+
+    document.getElementById("search").addEventListener("input", applyFilter);
+    load();
+  </script>
 </body>
 </html>
