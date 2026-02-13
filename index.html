@@ -29,7 +29,6 @@
       margin:0 auto;
     }
 
-    /* Centered heading area */
     .hero{
       text-align:center;
       margin:0 0 18px;
@@ -48,7 +47,6 @@
       font-size:18px;
     }
 
-    /* Force 4 per row on desktop */
     .grid{
       display:grid;
       grid-template-columns:repeat(4, minmax(0, 1fr));
@@ -149,7 +147,6 @@
       white-space:pre-wrap;
     }
 
-    /* Responsive breakpoints */
     @media (max-width:1100px){
       .grid{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
     }
@@ -180,7 +177,13 @@
     const CSV_URL =
       "https://docs.google.com/spreadsheets/d/e/2PACX-1vTFX7nWMq_3plmeprD6ncT1UQA1BiUYwjdh2SSnKstU3FSPKILos79nA-SAYddYV_gt2iyslYqqMWp2/pub?gid=1795204638&single=true&output=csv";
 
-    const LOCAL_PENDING_VOTE_KEY = "mini_hoopers_pending_vote";
+    // Your live Apps Script Web App endpoint
+    const VOTE_API_URL =
+      "https://script.google.com/macros/s/AKfycbzZ1_VGvmFbivzdgA7rmBNCJd4NBSjOjirj92DGWD4oQWQ2N4lF3Qp9XPcqvTULynQP/exec";
+
+    const VOTE_TOKEN_KEY = "mini_hoopers_vote_token_v1";
+    const LOCAL_VOTED_ENTRY_KEY = "mini_hoopers_voted_entry_v1";
+
     let allRows = [];
 
     function esc(s){
@@ -197,15 +200,15 @@
       const rows = [];
       let row = [], cur = "", inQuotes = false;
 
-      for (let i=0; i<s.length; i++){
-        const ch = s[i], next = s[i+1];
+      for (let i = 0; i < s.length; i++){
+        const ch = s[i], next = s[i + 1];
         if (ch === '"'){
           if (inQuotes && next === '"'){ cur += '"'; i++; }
           else inQuotes = !inQuotes;
           continue;
         }
-        if (!inQuotes && ch === ','){ row.push(cur); cur=""; continue; }
-        if (!inQuotes && ch === '\n'){ row.push(cur); rows.push(row); row=[]; cur=""; continue; }
+        if (!inQuotes && ch === ','){ row.push(cur); cur = ""; continue; }
+        if (!inQuotes && ch === '\n'){ row.push(cur); rows.push(row); row = []; cur = ""; continue; }
         if (!inQuotes && ch === '\r') continue;
         cur += ch;
       }
@@ -238,20 +241,58 @@
       return u;
     }
 
-    function validImageUrl(url){ return /^https?:\/\/.+/i.test(url); }
+    function validImageUrl(url){
+      return /^https?:\/\/.+/i.test(url);
+    }
 
-    function setPendingVote(entryId){ localStorage.setItem(LOCAL_PENDING_VOTE_KEY, entryId); }
-    function getPendingVote(){ return localStorage.getItem(LOCAL_PENDING_VOTE_KEY) || ""; }
+    function getVoteToken() {
+      let token = localStorage.getItem(VOTE_TOKEN_KEY);
+      if (!token) {
+        token = (window.crypto && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : ("tok_" + Date.now() + "_" + Math.random().toString(36).slice(2));
+        localStorage.setItem(VOTE_TOKEN_KEY, token);
+      }
+      return token;
+    }
+
+    function getVotedEntry() {
+      return localStorage.getItem(LOCAL_VOTED_ENTRY_KEY) || "";
+    }
+
+    function setVotedEntry(entryId) {
+      localStorage.setItem(LOCAL_VOTED_ENTRY_KEY, entryId);
+    }
+
+    async function submitVote(entryId) {
+      const payload = {
+        entry_id: entryId,
+        vote_token: getVoteToken(),
+        page_url: window.location.href,
+        user_agent: navigator.userAgent || ""
+      };
+
+      const res = await fetch(VOTE_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+
+      // Apps Script returns JSON text
+      const data = await res.json();
+      return data;
+    }
 
     function render(rows){
       const gallery = document.getElementById("gallery");
       const status = document.getElementById("status");
-      const pending = getPendingVote();
+      const votedEntry = getVotedEntry();
 
       gallery.innerHTML = "";
 
       rows.forEach(item => {
-        const selected = pending === item.id;
+        const selected = votedEntry === item.id;
+        const hasAnyVote = !!votedEntry;
 
         const card = document.createElement("article");
         card.className = "card";
@@ -261,20 +302,51 @@
             <div class="title">${esc(item.id || "Mini Hooper")}</div>
             <div class="caption" title="${esc(item.caption || "")}">${esc(item.caption || "")}</div>
             <div class="vote-row">
-              <button class="vote-btn" data-id="${esc(item.id)}" ${selected ? "disabled" : ""}>
-                ${selected ? "Submitted ✅" : "Vote"}
+              <button class="vote-btn" data-id="${esc(item.id)}" ${hasAnyVote ? "disabled" : ""}>
+                ${selected ? "Submitted ✅" : (hasAnyVote ? "Vote" : "Vote")}
               </button>
-              <span class="vote-hint">${selected ? "Vote recorded" : "One selection"}</span>
+              <span class="vote-hint">${selected ? "Vote recorded" : (hasAnyVote ? "Voting closed" : "One selection")}</span>
             </div>
             ${selected ? `<div class="vote-success">Your vote has been submitted.</div>` : ""}
           </div>
         `;
 
         const btn = card.querySelector(".vote-btn");
-        btn.addEventListener("click", () => {
-          setPendingVote(item.id);
-          render(rows);
-        });
+
+        if (!hasAnyVote) {
+          btn.addEventListener("click", async () => {
+            const oldText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = "Submitting...";
+
+            try {
+              const result = await submitVote(item.id);
+
+              if (result && result.ok) {
+                setVotedEntry(item.id);
+                render(rows);
+                return;
+              }
+
+              if (result && result.error === "already_voted") {
+                // token was already used previously
+                setVotedEntry(item.id); // lock UI on current choice to prevent repeat attempts
+                render(rows);
+                alert("You have already submitted a vote from this browser.");
+                return;
+              }
+
+              btn.disabled = false;
+              btn.textContent = oldText;
+              alert("Could not submit vote. Please try again.");
+            } catch (err) {
+              console.error(err);
+              btn.disabled = false;
+              btn.textContent = oldText;
+              alert("Network error while submitting vote.");
+            }
+          });
+        }
 
         gallery.appendChild(card);
       });
@@ -306,8 +378,8 @@
           while (row.length < headers.length) row.push("");
 
           const caption = (row[idxCaption] || "").trim();
-          const rawImg  = (row[idxImg] || "").trim();
-          const id      = (row[idxTitle] || "").trim() || `Mini-Hooper ${i + 1}`;
+          const rawImg = (row[idxImg] || "").trim();
+          const id = (row[idxTitle] || "").trim() || `Mini-Hooper ${i + 1}`;
 
           return { id, image_url: toDirectImageUrl(rawImg), caption };
         }).filter(x => x.id && validImageUrl(x.image_url));
