@@ -1,142 +1,91 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Mini Hoopers Gallery</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 24px; background: #f8fafc; }
-    .wrap { max-width: 1200px; margin: 0 auto; }
-    h1 { margin: 0 0 6px; }
-    .sub { color: #475569; margin: 0 0 16px; }
-    .toolbar { display:flex; gap:10px; margin-bottom:16px; flex-wrap: wrap; }
-    input[type="search"]{
-      width: 360px; max-width: 100%;
-      padding: 10px 12px; border:1px solid #cbd5e1; border-radius:10px;
+<script>
+  const FEED_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTFX7nWMq_3plmeprD6ncT1UQA1BiUYwjdh2SSnKstU3FSPKILos79nA-SAYddYV_gt2iyslYqqMWp2/gviz/tq?tqx=out:json&gid=1795204638";
+
+  let allRows = [];
+
+  function parseGviz(text) {
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1) throw new Error("Invalid GViz response");
+    return JSON.parse(text.slice(start, end + 1));
+  }
+
+  function esc(s){
+    return String(s || "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  // Your tab columns:
+  // F (index 5) = Caption
+  // H (index 7) = Post Img URLs
+  // I (index 8) = Approved Mini Hoopers
+  function mapRow(r){
+    const c = r.c || [];
+    const caption = c[5]?.v ? String(c[5].v).trim() : "";
+    const image   = c[7]?.v ? String(c[7].v).trim() : "";
+    const mini    = c[8]?.v ? String(c[8].v).trim() : "";
+    return { id: mini, image_url: image, caption };
+  }
+
+  function validImageUrl(url){
+    return /^https?:\/\/.+/i.test(url);
+  }
+
+  function render(rows){
+    const gallery = document.getElementById("gallery");
+    const status = document.getElementById("status");
+    gallery.innerHTML = "";
+
+    rows.forEach(item => {
+      const card = document.createElement("article");
+      card.className = "card";
+      card.innerHTML = `
+        <img loading="lazy" src="${esc(item.image_url)}" alt="${esc(item.id || "Mini Hooper")}" />
+        <div class="meta">
+          <div class="title">${esc(item.id || "Mini Hooper")}</div>
+          <div class="caption">${esc(item.caption || "")}</div>
+        </div>
+      `;
+      gallery.appendChild(card);
+    });
+
+    status.textContent = `Showing ${rows.length} approved entries.`;
+  }
+
+  function applyFilter(){
+    const q = document.getElementById("search").value.trim().toLowerCase();
+    if(!q) return render(allRows);
+
+    const filtered = allRows.filter(x =>
+      (x.id || "").toLowerCase().includes(q) ||
+      (x.caption || "").toLowerCase().includes(q)
+    );
+    render(filtered);
+  }
+
+  async function load(){
+    const status = document.getElementById("status");
+    try{
+      const res = await fetch(FEED_URL, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const txt = await res.text();
+      const data = parseGviz(txt);
+
+      allRows = (data.table.rows || [])
+        .map(mapRow)
+        .filter(x => x.id && x.image_url && validImageUrl(x.image_url));
+
+      render(allRows);
+    }catch(err){
+      console.error(err);
+      status.textContent = `Failed to load data: ${err.message}`;
     }
-    .grid{
-      display:grid;
-      grid-template-columns: repeat(auto-fill,minmax(240px,1fr));
-      gap:16px;
-    }
-    .card{
-      background:#fff; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-    }
-    .card img{
-      width:100%; height:220px; object-fit:cover; display:block; background:#e2e8f0;
-    }
-    .meta{ padding:12px; }
-    .title{ font-weight:700; margin-bottom:8px; color:#0f172a; }
-    .caption{ color:#334155; line-height:1.45; font-size:14px; }
-    .status{ margin-top:14px; color:#64748b; font-size:14px; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <h1>Mini Hoopers 🏀🐾</h1>
-    <p class="sub">Live gallery from the “Approved Entries” tab.</p>
+  }
 
-    <div class="toolbar">
-      <input id="search" type="search" placeholder="Search by name or caption..." />
-    </div>
-
-    <div id="gallery" class="grid"></div>
-    <div id="status" class="status">Loading...</div>
-  </div>
-
-  <script>
-    // ===== CONFIG =====
-    const SHEET_ID = "PASTE_YOUR_SHEET_ID_HERE";
-    const SHEET_NAME = "Approved Entries";
-    // ==================
-
-    const FEED_URL = `https://docs.google.com/spreadsheets/d/e/2PACX-1vTFX7nWMq_3plmeprD6ncT1UQA1BiUYwjdh2SSnKstU3FSPKILos79nA-SAYddYV_gt2iyslYqqMWp2/gviz/tq?tqx=out:json&gid=1795204638`;
-
-    let allRows = [];
-
-    function parseGviz(text) {
-      const jsonText = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
-      return JSON.parse(jsonText);
-    }
-
-    function esc(s){
-      return String(s || "")
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
-    }
-
-    // Based on your current column order:
-    // F (index 5): Caption
-    // H (index 7): Post Img URLs
-    // I (index 8): Approved Mini Hoopers
-    function mapRow(r){
-      const c = r.c || [];
-      const caption = c[5]?.v ? String(c[5].v).trim() : "";
-      const image   = c[7]?.v ? String(c[7].v).trim() : "";
-      const mini    = c[8]?.v ? String(c[8].v).trim() : "";
-      return { id: mini, image_url: image, caption };
-    }
-
-    function validImageUrl(url){
-      return /^https?:\/\/.+/i.test(url);
-    }
-
-    function render(rows){
-      const gallery = document.getElementById("gallery");
-      const status = document.getElementById("status");
-      gallery.innerHTML = "";
-
-      rows.forEach(item => {
-        const card = document.createElement("article");
-        card.className = "card";
-        card.innerHTML = `
-          <img loading="lazy" src="${esc(item.image_url)}" alt="${esc(item.id || "Mini Hooper")}" />
-          <div class="meta">
-            <div class="title">${esc(item.id || "Mini Hooper")}</div>
-            <div class="caption">${esc(item.caption || "")}</div>
-          </div>
-        `;
-        gallery.appendChild(card);
-      });
-
-      status.textContent = `Showing ${rows.length} approved entries.`;
-    }
-
-    function applyFilter(){
-      const q = document.getElementById("search").value.trim().toLowerCase();
-      if(!q) return render(allRows);
-
-      const filtered = allRows.filter(x =>
-        (x.id || "").toLowerCase().includes(q) ||
-        (x.caption || "").toLowerCase().includes(q)
-      );
-      render(filtered);
-    }
-
-    async function load(){
-      const status = document.getElementById("status");
-      try{
-        const res = await fetch(FEED_URL, { cache: "no-store" });
-        const txt = await res.text();
-        const data = parseGviz(txt);
-
-        allRows = (data.table.rows || [])
-          .map(mapRow)
-          .filter(x => x.id && x.image_url && validImageUrl(x.image_url));
-
-        render(allRows);
-      }catch(err){
-        console.error(err);
-        status.textContent = "Failed to load data. Check SHEET_ID, tab name, and publish settings.";
-      }
-    }
-
-    document.getElementById("search").addEventListener("input", applyFilter);
-    load();
-  </script>
-</body>
-</html>
+  document.getElementById("search").addEventListener("input", applyFilter);
+  load();
+</script>
