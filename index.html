@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Mini Hoopers Voting</title>
+  <title>Mini Hoopers 🏀🐾</title>
   <style>
     :root{
       --bg:#f8fafc;
@@ -12,41 +12,60 @@
       --card:#fff;
       --border:#e2e8f0;
     }
-    *{box-sizing:border-box}
+    *{ box-sizing:border-box; }
     body{
       margin:24px;
       font-family:Arial,sans-serif;
       background:var(--bg);
       color:var(--text);
     }
-    .wrap{max-width:1200px;margin:0 auto}
-    h1{margin:0 0 6px;font-size:42px;line-height:1.05}
-    .sub{margin:0 0 16px;color:var(--muted);font-size:18px}
-    .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+    .wrap{ max-width:1200px; margin:0 auto; }
+    h1{ margin:0 0 6px; font-size:62px; line-height:1.02; }
+    .sub{ margin:0 0 16px; color:var(--muted); font-size:44px; }
+    .toolbar{ margin-bottom:16px; }
     input[type="search"]{
-      width:420px;max-width:100%;
-      border:1px solid #cbd5e1;border-radius:12px;
-      padding:12px 14px;font-size:16px
+      width:630px; max-width:100%;
+      border:1px solid #cbd5e1; border-radius:14px;
+      padding:14px 16px; font-size:42px;
+      background:#fff;
     }
     .grid{
       display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
-      gap:16px
+      grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+      gap:16px;
     }
     .card{
       background:var(--card);
       border:1px solid var(--border);
-      border-radius:14px;overflow:hidden;
-      box-shadow:0 1px 2px rgba(0,0,0,.04)
+      border-radius:14px;
+      overflow:hidden;
+      box-shadow:0 1px 2px rgba(0,0,0,.04);
     }
     .card img{
-      width:100%;height:230px;object-fit:cover;display:block;background:#e2e8f0
+      width:100%; height:230px; object-fit:cover; display:block;
+      background:#e2e8f0;
     }
-    .meta{padding:12px}
-    .title{font-weight:700;font-size:18px;margin-bottom:8px}
-    .caption{font-size:14px;line-height:1.45;color:#334155}
-    .status{margin-top:14px;font-size:14px;color:#64748b;white-space:pre-wrap}
-    .debug{margin-top:6px;font-size:12px;color:#94a3b8;word-break:break-all}
+    .meta{ padding:12px; }
+    .title{ font-size:18px; font-weight:700; margin-bottom:8px; }
+    .caption{ font-size:14px; line-height:1.45; color:#334155; }
+    .status{
+      margin-top:14px;
+      font-size:14px;
+      color:#64748b;
+      white-space:pre-wrap;
+    }
+    .debug{
+      margin-top:6px;
+      font-size:12px;
+      color:#94a3b8;
+      word-break:break-all;
+    }
+
+    @media (max-width: 900px){
+      h1{ font-size:44px; }
+      .sub{ font-size:30px; }
+      input[type="search"]{ font-size:26px; width:100%; }
+    }
   </style>
 </head>
 <body>
@@ -63,108 +82,169 @@
     <div id="debug" class="debug"></div>
   </div>
 
-<script>
-  const FEED_URL = "https://docs.google.com/spreadsheets/d/REAL_SHEET_ID/gviz/tq?tqx=out:json&gid=1795204638";
-  let allRows = [];
+  <script>
+    // Published CSV endpoint for your Approved entries tab
+    const CSV_URL =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vTFX7nWMq_3plmeprD6ncT1UQA1BiUYwjdh2SSnKstU3FSPKILos79nA-SAYddYV_gt2iyslYqqMWp2/pub?gid=1795204638&single=true&output=csv";
 
-  function esc(s){
-    return String(s || "")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
+    let allRows = [];
 
-  function extractGvizJson(text){
-    const t = (text || "").trim();
-
-    if (t.startsWith("<!DOCTYPE html") || t.startsWith("<html")) {
-      throw new Error("Got HTML instead of GViz JSON. Check sheet ID, sharing, and gid.");
+    function esc(s){
+      return String(s || "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
     }
 
-    const m = t.match(/google\.visualization\.Query\.setResponse\(([\s\S]*?)\);?\s*$/);
-    if (m && m[1]) return JSON.parse(m[1]);
+    // Robust CSV parser (handles quotes/newlines)
+    function parseCSV(text) {
+      const s = String(text || "").replace(/^\uFEFF/, "");
+      const rows = [];
+      let row = [];
+      let cur = "";
+      let inQuotes = false;
 
-    const start = t.indexOf("{");
-    const end = t.lastIndexOf("}");
-    if (start === -1 || end === -1 || end <= start) {
-      throw new Error("Could not parse GViz response.");
+      for (let i = 0; i < s.length; i++) {
+        const ch = s[i];
+        const next = s[i + 1];
+
+        if (ch === '"') {
+          if (inQuotes && next === '"') { cur += '"'; i++; }
+          else { inQuotes = !inQuotes; }
+          continue;
+        }
+        if (!inQuotes && ch === ',') {
+          row.push(cur); cur = ""; continue;
+        }
+        if (!inQuotes && ch === '\n') {
+          row.push(cur); rows.push(row); row = []; cur = ""; continue;
+        }
+        if (!inQuotes && ch === '\r') continue;
+
+        cur += ch;
+      }
+      row.push(cur);
+      rows.push(row);
+
+      // trim trailing empty lines
+      while (rows.length && rows[rows.length - 1].every(c => String(c || "").trim() === "")) {
+        rows.pop();
+      }
+      return rows.map(r => r.map(c => String(c || "").trim()));
     }
-    return JSON.parse(t.slice(start, end + 1));
-  }
 
-  // F=5 Caption, H=7 Post Img URLs, I=8 Approved Mini Hoopers
-  function mapRow(r){
-    const c = r.c || [];
-    return {
-      caption: c[5]?.v ? String(c[5].v).trim() : "",
-      image_url: c[7]?.v ? String(c[7].v).trim() : "",
-      id: c[8]?.v ? String(c[8].v).trim() : ""
-    };
-  }
-
-  function validImageUrl(url){
-    return /^https?:\/\/.+/i.test(url);
-  }
-
-  function render(rows){
-    const gallery = document.getElementById("gallery");
-    const status = document.getElementById("status");
-    gallery.innerHTML = "";
-
-    rows.forEach(item => {
-      const card = document.createElement("article");
-      card.className = "card";
-      card.innerHTML = `
-        <img loading="lazy" src="${esc(item.image_url)}" alt="${esc(item.id || "Mini Hooper")}" />
-        <div class="meta">
-          <div class="title">${esc(item.id || "Mini Hooper")}</div>
-          <div class="caption">${esc(item.caption || "")}</div>
-        </div>
-      `;
-      gallery.appendChild(card);
-    });
-
-    status.textContent = `Showing ${rows.length} approved entries.`;
-  }
-
-  function applyFilter(){
-    const q = document.getElementById("search").value.trim().toLowerCase();
-    if(!q) return render(allRows);
-
-    const filtered = allRows.filter(x =>
-      (x.id || "").toLowerCase().includes(q) ||
-      (x.caption || "").toLowerCase().includes(q)
-    );
-    render(filtered);
-  }
-
-  async function load(){
-    const status = document.getElementById("status");
-    const debug = document.getElementById("debug");
-
-    try{
-      debug.textContent = `Feed URL: ${FEED_URL}`;
-      const res = await fetch(FEED_URL, { cache: "no-store" });
-      if (!res.ok) throw new Error(`Feed HTTP ${res.status}`);
-
-      const txt = await res.text();
-      const data = extractGvizJson(txt);
-
-      allRows = (data?.table?.rows || [])
-        .map(mapRow)
-        .filter(x => x.id && x.image_url && validImageUrl(x.image_url));
-
-      render(allRows);
-    } catch (err) {
-      console.error(err);
-      status.textContent = `Failed to load entries.\n${err.message}`;
+    function findCol(headers, names) {
+      const lower = headers.map(h => String(h || "").trim().toLowerCase());
+      for (const n of names) {
+        const idx = lower.indexOf(String(n).toLowerCase());
+        if (idx !== -1) return idx;
+      }
+      return -1;
     }
-  }
 
-  document.getElementById("search").addEventListener("input", applyFilter);
-  load();
-</script>
+    function toDirectImageUrl(url) {
+      if (!url) return "";
+      const u = String(url).trim();
+
+      // If Drive link, convert to direct view link
+      let m = u.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+      if (m && m[1]) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+
+      m = u.match(/[?&]id=([^&]+)/i);
+      if (m && m[1] && u.includes("drive.google.com")) {
+        return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+      }
+
+      // postimg direct links (i.postimg.cc/...) already fine
+      return u;
+    }
+
+    function validImageUrl(url){
+      return /^https?:\/\/.+/i.test(url);
+    }
+
+    function render(rows){
+      const gallery = document.getElementById("gallery");
+      const status = document.getElementById("status");
+      gallery.innerHTML = "";
+
+      rows.forEach(item => {
+        const card = document.createElement("article");
+        card.className = "card";
+        card.innerHTML = `
+          <img loading="lazy" src="${esc(item.image_url)}" alt="${esc(item.id || "Mini Hooper")}" />
+          <div class="meta">
+            <div class="title">${esc(item.id || "Mini Hooper")}</div>
+            <div class="caption">${esc(item.caption || "")}</div>
+          </div>
+        `;
+        gallery.appendChild(card);
+      });
+
+      status.textContent = `Showing ${rows.length} approved entries.`;
+    }
+
+    function applyFilter(){
+      const q = document.getElementById("search").value.trim().toLowerCase();
+      if (!q) return render(allRows);
+
+      const filtered = allRows.filter(x =>
+        (x.id || "").toLowerCase().includes(q) ||
+        (x.caption || "").toLowerCase().includes(q)
+      );
+      render(filtered);
+    }
+
+    async function load(){
+      const status = document.getElementById("status");
+      const debug = document.getElementById("debug");
+
+      try{
+        debug.textContent = `CSV URL: ${CSV_URL}`;
+        const res = await fetch(CSV_URL + "&_=" + Date.now(), { cache: "no-store" });
+        if (!res.ok) throw new Error(`CSV HTTP ${res.status}`);
+
+        const csv = await res.text();
+        const rows = parseCSV(csv);
+        if (!rows || rows.length < 2) throw new Error("CSV contains no data rows.");
+
+        const headers = rows[0];
+
+        // Header-based mapping (survives column reorder)
+        const idxCaption = findCol(headers, ["Caption"]);
+        const idxImg = findCol(headers, ["Post Img URLs","Post Img URL","Postimg URLs","Postimg URL"]);
+        const idxTitle = findCol(headers, ["Approved Mini Hoopers","Approved Mini Hooper"]);
+
+        if (idxCaption === -1 || idxImg === -1 || idxTitle === -1) {
+          throw new Error("Required columns not found. Need: Caption, Post Img URLs, Approved Mini Hoopers.");
+        }
+
+        allRows = rows.slice(1).map((r, i) => {
+          const row = r.slice();
+          while (row.length < headers.length) row.push("");
+
+          const caption = (row[idxCaption] || "").trim();
+          const rawImg  = (row[idxImg] || "").trim();
+          const id      = (row[idxTitle] || "").trim() || `Mini-Hooper ${i + 1}`;
+
+          return {
+            id,
+            image_url: toDirectImageUrl(rawImg),
+            caption
+          };
+        }).filter(x => x.id && validImageUrl(x.image_url));
+
+        render(allRows);
+      } catch (err) {
+        console.error(err);
+        status.textContent = `Failed to load entries.\n${err.message}`;
+      }
+    }
+
+    document.getElementById("search").addEventListener("input", applyFilter);
+    load();
+  </script>
 </body>
 </html>
