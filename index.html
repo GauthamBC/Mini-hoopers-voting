@@ -14,6 +14,7 @@
       --btn:#0f172a;
       --btnText:#ffffff;
       --success:#15803d;
+      --danger:#991b1b;
     }
     *{ box-sizing:border-box; }
 
@@ -147,6 +148,34 @@
       white-space:pre-wrap;
     }
 
+    /* Toast popup */
+    .toast{
+      position:fixed;
+      left:50%;
+      bottom:24px;
+      transform:translateX(-50%) translateY(20px);
+      background:#0f172a;
+      color:#fff;
+      border:1px solid rgba(255,255,255,.2);
+      border-radius:12px;
+      padding:12px 16px;
+      font-size:14px;
+      font-weight:600;
+      box-shadow:0 10px 25px rgba(0,0,0,.2);
+      opacity:0;
+      pointer-events:none;
+      z-index:9999;
+      transition:opacity .22s ease, transform .22s ease;
+      max-width:min(92vw, 520px);
+      text-align:center;
+    }
+    .toast.show{
+      opacity:1;
+      transform:translateX(-50%) translateY(0);
+    }
+    .toast.success{ background:#166534; }
+    .toast.error{ background:#991b1b; }
+
     @media (max-width:1100px){
       .grid{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
     }
@@ -172,17 +201,22 @@
     <div id="status" class="status">Loading entries...</div>
   </div>
 
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
   <script>
     // Approved Entries published CSV endpoint
     const CSV_URL =
       "https://docs.google.com/spreadsheets/d/e/2PACX-1vTFX7nWMq_3plmeprD6ncT1UQA1BiUYwjdh2SSnKstU3FSPKILos79nA-SAYddYV_gt2iyslYqqMWp2/pub?gid=1795204638&single=true&output=csv";
 
-    // Your live Apps Script Web App endpoint
-   const VOTE_API_URL = "https://script.google.com/macros/s/AKfycbzubEDzSmQjC_wdo_2U6sCZ7nL9k_rlyZ_d8LC0ErkU4sCLnCbw6gmNmYsmWSD6xtn4/exec";
+    // Live Apps Script Web App endpoint
+    const VOTE_API_URL = "https://script.google.com/macros/s/AKfycbzubEDzSmQjC_wdo_2U6sCZ7nL9k_rlyZ_d8LC0ErkU4sCLnCbw6gmNmYsmWSD6xtn4/exec";
+
     const VOTE_TOKEN_KEY = "mini_hoopers_vote_token_v1";
     const LOCAL_VOTED_ENTRY_KEY = "mini_hoopers_voted_entry_v1";
 
     let allRows = [];
+    let toastTimer;
 
     function esc(s){
       return String(s || "")
@@ -191,6 +225,15 @@
         .replaceAll(">","&gt;")
         .replaceAll('"',"&quot;")
         .replaceAll("'","&#039;");
+    }
+
+    function showToast(message, type = "success", ms = 2200){
+      const el = document.getElementById("toast");
+      if (!el) return;
+      el.textContent = message;
+      el.className = `toast show ${type}`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el.className = "toast"; }, ms);
     }
 
     function parseCSV(text) {
@@ -276,7 +319,6 @@
         body: JSON.stringify(payload)
       });
 
-      // Apps Script returns JSON text
       const data = await res.json();
       return data;
     }
@@ -301,7 +343,7 @@
             <div class="caption" title="${esc(item.caption || "")}">${esc(item.caption || "")}</div>
             <div class="vote-row">
               <button class="vote-btn" data-id="${esc(item.id)}" ${hasAnyVote ? "disabled" : ""}>
-                ${selected ? "Submitted ✅" : (hasAnyVote ? "Vote" : "Vote")}
+                ${selected ? "Submitted ✅" : "Vote"}
               </button>
               <span class="vote-hint">${selected ? "Vote recorded" : (hasAnyVote ? "Voting closed" : "One selection")}</span>
             </div>
@@ -323,25 +365,26 @@
               if (result && result.ok) {
                 setVotedEntry(item.id);
                 render(rows);
+                showToast("Your vote has been submitted.", "success");
                 return;
               }
 
               if (result && result.error === "already_voted") {
-                // token was already used previously
-                setVotedEntry(item.id); // lock UI on current choice to prevent repeat attempts
+                // token already used on server
+                setVotedEntry(item.id);
                 render(rows);
-                alert("You have already submitted a vote from this browser.");
+                showToast("You have already submitted a vote from this browser.", "error");
                 return;
               }
 
               btn.disabled = false;
               btn.textContent = oldText;
-              alert("Could not submit vote. Please try again.");
+              showToast("Could not submit vote. Please try again.", "error");
             } catch (err) {
               console.error(err);
               btn.disabled = false;
               btn.textContent = oldText;
-              alert("Network error while submitting vote.");
+              showToast("Network error while submitting vote.", "error");
             }
           });
         }
@@ -364,11 +407,11 @@
 
         const headers = rows[0];
         const idxCaption = findCol(headers, ["Caption"]);
-        const idxImg = findCol(headers, ["Post Img URLs","Post Img URL","Postimg URLs","Postimg URL"]);
+        const idxImg = findCol(headers, ["Post Img URLs","Post Img URL","Postimg URLs","Postimg URL","Approved Images"]);
         const idxTitle = findCol(headers, ["Approved Mini Hoopers","Approved Mini Hooper"]);
 
         if (idxCaption === -1 || idxImg === -1 || idxTitle === -1) {
-          throw new Error("Missing required columns: Caption, Post Img URLs, Approved Mini Hoopers.");
+          throw new Error("Missing required columns: Caption, Post Img URLs/Approved Images, Approved Mini Hoopers.");
         }
 
         allRows = rows.slice(1).map((r, i) => {
@@ -386,6 +429,7 @@
       } catch(err){
         console.error(err);
         status.textContent = `Failed to load entries.\n${err.message}`;
+        showToast("Failed to load entries.", "error", 2600);
       }
     }
 
