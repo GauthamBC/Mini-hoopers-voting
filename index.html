@@ -11,6 +11,8 @@
       --muted:#475569;
       --card:#fff;
       --border:#e2e8f0;
+      --btn:#0f172a;
+      --btnText:#fff;
     }
     *{ box-sizing:border-box; }
     body{
@@ -19,19 +21,27 @@
       background:var(--bg);
       color:var(--text);
     }
-    .wrap{ max-width:1200px; margin:0 auto; }
-    h1{ margin:0 0 6px; font-size:62px; line-height:1.02; }
-    .sub{ margin:0 0 16px; color:var(--muted); font-size:44px; }
+    .wrap{ max-width:1240px; margin:0 auto; }
+    h1{ margin:0 0 6px; font-size:72px; line-height:1.02; }
+    .sub{ margin:0 0 18px; color:var(--muted); font-size:30px; }
     .toolbar{ margin-bottom:16px; }
     input[type="search"]{
-      width:630px; max-width:100%;
+      width:760px; max-width:100%;
       border:1px solid #cbd5e1; border-radius:14px;
-      padding:14px 16px; font-size:42px;
-      background:#fff;
+      padding:14px 16px; font-size:28px; background:#fff;
+    }
+    .notice{
+      margin:0 0 14px;
+      padding:10px 12px;
+      border:1px solid #dbeafe;
+      background:#eff6ff;
+      color:#1e3a8a;
+      border-radius:10px;
+      font-size:14px;
     }
     .grid{
       display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+      grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
       gap:16px;
     }
     .card{
@@ -40,14 +50,37 @@
       border-radius:14px;
       overflow:hidden;
       box-shadow:0 1px 2px rgba(0,0,0,.04);
+      display:flex;
+      flex-direction:column;
     }
     .card img{
-      width:100%; height:230px; object-fit:cover; display:block;
+      width:100%; height:250px; object-fit:cover; display:block;
       background:#e2e8f0;
     }
-    .meta{ padding:12px; }
-    .title{ font-size:18px; font-weight:700; margin-bottom:8px; }
-    .caption{ font-size:14px; line-height:1.45; color:#334155; }
+    .meta{ padding:12px; display:flex; flex-direction:column; gap:8px; }
+    .title{ font-size:42px; font-weight:700; line-height:1.1; }
+    .caption{ font-size:38px; line-height:1.35; color:#334155; min-height:54px; }
+
+    .vote-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-top:2px;
+    }
+    .vote-btn{
+      border:1px solid #cbd5e1;
+      border-radius:10px;
+      background:var(--btn);
+      color:var(--btnText);
+      padding:8px 12px;
+      font-size:14px;
+      font-weight:700;
+      cursor:pointer;
+    }
+    .vote-btn:hover{ opacity:.95; }
+    .vote-hint{ font-size:12px; color:#64748b; }
+
     .status{
       margin-top:14px;
       font-size:14px;
@@ -61,20 +94,26 @@
       word-break:break-all;
     }
 
-    @media (max-width: 900px){
-      h1{ font-size:44px; }
-      .sub{ font-size:30px; }
-      input[type="search"]{ font-size:26px; width:100%; }
+    @media (max-width:900px){
+      h1{font-size:48px;}
+      .sub{font-size:24px;}
+      input[type="search"]{font-size:20px; width:100%;}
+      .title{font-size:28px;}
+      .caption{font-size:22px;}
     }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Mini Hoopers 🏀🐾</h1>
-    <p class="sub">Live gallery from the “Approved entries” tab.</p>
+    <p class="sub">Live gallery from the “Approved Entries” tab.</p>
 
     <div class="toolbar">
       <input id="search" type="search" placeholder="Search by name or caption..." />
+    </div>
+
+    <div class="notice">
+      Voting UI is live. Vote storage will be connected next to your <strong>Voting Bank</strong> sheet.
     </div>
 
     <div id="gallery" class="grid"></div>
@@ -83,9 +122,12 @@
   </div>
 
   <script>
-    // Published CSV endpoint for your Approved entries tab
+    // Approved Entries published CSV endpoint (already working for you)
     const CSV_URL =
       "https://docs.google.com/spreadsheets/d/e/2PACX-1vTFX7nWMq_3plmeprD6ncT1UQA1BiUYwjdh2SSnKstU3FSPKILos79nA-SAYddYV_gt2iyslYqqMWp2/pub?gid=1795204638&single=true&output=csv";
+
+    // Front-end only "pending vote" key (temporary until backend is connected)
+    const LOCAL_PENDING_VOTE_KEY = "mini_hoopers_pending_vote";
 
     let allRows = [];
 
@@ -98,7 +140,6 @@
         .replaceAll("'","&#039;");
     }
 
-    // Robust CSV parser (handles quotes/newlines)
     function parseCSV(text) {
       const s = String(text || "").replace(/^\uFEFF/, "");
       const rows = [];
@@ -115,20 +156,15 @@
           else { inQuotes = !inQuotes; }
           continue;
         }
-        if (!inQuotes && ch === ',') {
-          row.push(cur); cur = ""; continue;
-        }
-        if (!inQuotes && ch === '\n') {
-          row.push(cur); rows.push(row); row = []; cur = ""; continue;
-        }
+        if (!inQuotes && ch === ',') { row.push(cur); cur = ""; continue; }
+        if (!inQuotes && ch === '\n') { row.push(cur); rows.push(row); row = []; cur = ""; continue; }
         if (!inQuotes && ch === '\r') continue;
-
         cur += ch;
       }
+
       row.push(cur);
       rows.push(row);
 
-      // trim trailing empty lines
       while (rows.length && rows[rows.length - 1].every(c => String(c || "").trim() === "")) {
         rows.pop();
       }
@@ -148,7 +184,6 @@
       if (!url) return "";
       const u = String(url).trim();
 
-      // If Drive link, convert to direct view link
       let m = u.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
       if (m && m[1]) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
 
@@ -157,7 +192,6 @@
         return `https://drive.google.com/uc?export=view&id=${m[1]}`;
       }
 
-      // postimg direct links (i.postimg.cc/...) already fine
       return u;
     }
 
@@ -165,21 +199,46 @@
       return /^https?:\/\/.+/i.test(url);
     }
 
+    function setPendingVote(entryId){
+      localStorage.setItem(LOCAL_PENDING_VOTE_KEY, entryId);
+    }
+
+    function getPendingVote(){
+      return localStorage.getItem(LOCAL_PENDING_VOTE_KEY) || "";
+    }
+
     function render(rows){
       const gallery = document.getElementById("gallery");
       const status = document.getElementById("status");
       gallery.innerHTML = "";
 
+      const pending = getPendingVote();
+
       rows.forEach(item => {
         const card = document.createElement("article");
         card.className = "card";
+
+        const votedThis = pending && pending === item.id;
+
         card.innerHTML = `
           <img loading="lazy" src="${esc(item.image_url)}" alt="${esc(item.id || "Mini Hooper")}" />
           <div class="meta">
             <div class="title">${esc(item.id || "Mini Hooper")}</div>
             <div class="caption">${esc(item.caption || "")}</div>
+            <div class="vote-row">
+              <button class="vote-btn" data-id="${esc(item.id)}">${votedThis ? "Selected ✅" : "Vote"}</button>
+              <span class="vote-hint">${votedThis ? "Pending backend save" : "One selection per browser (for now)"}</span>
+            </div>
           </div>
         `;
+
+        const btn = card.querySelector(".vote-btn");
+        btn.addEventListener("click", () => {
+          setPendingVote(item.id);
+          render(rows);
+          alert(`Selection saved locally for now: ${item.id}\n\nNext step: connect Apps Script to store in Voting Bank.`);
+        });
+
         gallery.appendChild(card);
       });
 
@@ -212,13 +271,12 @@
 
         const headers = rows[0];
 
-        // Header-based mapping (survives column reorder)
         const idxCaption = findCol(headers, ["Caption"]);
         const idxImg = findCol(headers, ["Post Img URLs","Post Img URL","Postimg URLs","Postimg URL"]);
         const idxTitle = findCol(headers, ["Approved Mini Hoopers","Approved Mini Hooper"]);
 
         if (idxCaption === -1 || idxImg === -1 || idxTitle === -1) {
-          throw new Error("Required columns not found. Need: Caption, Post Img URLs, Approved Mini Hoopers.");
+          throw new Error("Missing required columns: Caption, Post Img URLs, Approved Mini Hoopers.");
         }
 
         allRows = rows.slice(1).map((r, i) => {
@@ -229,11 +287,7 @@
           const rawImg  = (row[idxImg] || "").trim();
           const id      = (row[idxTitle] || "").trim() || `Mini-Hooper ${i + 1}`;
 
-          return {
-            id,
-            image_url: toDirectImageUrl(rawImg),
-            caption
-          };
+          return { id, image_url: toDirectImageUrl(rawImg), caption };
         }).filter(x => x.id && validImageUrl(x.image_url));
 
         render(allRows);
